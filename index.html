@@ -50,7 +50,7 @@ const CF=["Send a voice note whispering one thing you love about them.","Describ
 const C=["Send a voice note telling them one thing you adore about them.","Describe your first impression of them in three words.","Send your best smiling selfie right now.","Give a 20-second compliment without repeating yourself.","Sing one line of a love song in a voice note.","Write a two-line love poem on the spot.","Share your favorite memory of the two of you.","Plan your next date together in three sentences."];
 const SP=[["outfit of mine they love most",["Dressed up","Casual cozy","Date night look","Sporty"]],["favorite kind of affection",["Cuddles","Kisses","Hand holding","Words"]],["perfect romantic evening",["Candles and wine","Dancing at home","Movie and cuddles","Under the stars"]],["thing that turns their head",["A confident look","A low voice","A sudden compliment","A slow dance"]],["place to steal a kiss",["In the kitchen","At the door","In the car","On a balcony"]],["flirty text they'd love",["Miss you","Thinking of you","Come over","Guess who's cute"]]];
 const CS=["Send a voice note about your favorite kiss with them.","Describe a perfect night together in three sentences.","Send a photo of your best look right now and say why.","Whisper a compliment in a voice note."];
-const EM=["😂","😍","😮","🔥"],DBL=[2,6],TL=20000;
+const EM=["😂","😍","😮","🔥"],DBL=[2,6],TL=45000;
 const app=document.getElementById("app");
 let db,uid,code,room,off,name="",msg="",pack="sweet",lvl=0,step=0,mine=0,dl=0,lk="";
 const ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
@@ -63,7 +63,7 @@ const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math
 const gen=()=>Array.from({length:4},()=>"ABCDEFGHJKMNPQRSTUVWXYZ"[Math.floor(Math.random()*23)]).join("");
 const newQs=(p,l)=>shuffle(pool({pack:p,lvl:l}).map((_,i)=>i)).slice(0,10);
 const timeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),ms))]);
-function show(...k){app.replaceChildren(h("h1",0,"❤️ How Well Do You Know Me?"),...k)}
+function show(...k){app.replaceChildren(h("h1",0,"❤️ How Well Do You Know Me?"),...k.filter(Boolean))}
 function home(){
   const n=h("input",{placeholder:"Your name",maxlength:20,value:name});
   const pre=(new URLSearchParams(location.search).get("r")||"").toUpperCase().slice(0,4);
@@ -100,12 +100,11 @@ function listen(){
   off=()=>r.off("value",f)}
 function leave(){if(off)off();off=null;room=null;code=null;ls("hwdkm_room",null);home()}
 const upd=o=>ref().update(o).catch(()=>{});
-function resolve(){ref().transaction(d=>{
-  if(!d||d.phase!=="play"||!d.a)return;const[o0,o1]=d.order;if(!d.a[o0]||!d.a[o1])return;
-  const m=DBL.includes(d.round)?2:1,A=d.a;d.scores=d.scores||{};d.ok=d.ok||{};
-  [[o0,o1],[o1,o0]].forEach(([p,o])=>{if(A[p].g>=0&&A[p].g===A[o].s){d.scores[p]=(d.scores[p]||0)+m;d.ok[p]=(d.ok[p]||0)+1}});
-  if(A[o0].s>=0||A[o1].s>=0)d.n=(d.n||0)+1;d.phase="reveal";return d})}
-function next(r){ref().transaction(d=>{if(!d||d.phase!=="reveal"||d.round!==r)return;if(r>=9){d.phase="done";return d}d.round=r+1;d.phase="play";d.a=null;d.rx=null;return d})}
+function resolve(){const d=room;if(!d||d.phase!=="play")return;const[o0,o1]=d.order,A=d.a;if(!A[o0]||!A[o1])return;
+  const m=DBL.includes(d.round)?2:1,sc={...d.scores},ok={...d.ok};
+  [[o0,o1],[o1,o0]].forEach(([p,o])=>{if(A[p].g>=0&&A[p].g===A[o].s){sc[p]=(sc[p]||0)+m;ok[p]=(ok[p]||0)+1}});
+  room.phase="reveal";upd({phase:"reveal",scores:sc,ok,n:(d.n||0)+((A[o0].s>=0||A[o1].s>=0)?1:0)})}
+function next(r){if(!room||room.phase!=="reveal"||room.round!==r)return;if(r>=9)return upd({phase:"done"});upd({round:r+1,phase:"play",a:null,rx:null})}
 const send=(s,g)=>{step=2;upd({["a/"+uid]:{s,g}});render()};
 setInterval(()=>{if(!room||room.phase!=="play"||!dl)return;const left=dl-Date.now(),e=document.getElementById("tb");if(e)e.style.width=Math.max(0,left/TL*100)+"%";if(left<=0&&step<2&&!room.a[uid])send(-1,-1)},250);
 function board(){
