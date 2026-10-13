@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>How Well Do You Know Me?</title>
+<style>
+:root{--bg:#fff1f4;--card:#fff;--ink:#3b1626;--mut:#8a5a6c;--pk:#e8426f;--pk2:#ff8fa8;--ok:#1f9d6b;--bad:#c2410c;--line:#f5c9d5;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root{--bg:#1f0f16;--card:#2d1822;--ink:#ffe9ef;--mut:#d9a3b5;--line:#4a2a38}}
+*{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+#app{max-width:480px;margin:0 auto;padding:16px}
+h1{font-size:26px;margin:12px 0 4px;text-align:center}
+.sub{text-align:center;color:var(--mut);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}
+input{width:100%;font:inherit;font-size:16px;padding:13px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);margin:6px 0}
+.codein{letter-spacing:.35em;text-transform:uppercase;text-align:center;font-weight:700}
+button,a.btn{display:block;width:100%;text-align:center;text-decoration:none;font:inherit;font-weight:600;padding:14px;border-radius:14px;border:0;background:linear-gradient(135deg,var(--pk),var(--pk2));color:#fff;margin:8px 0;cursor:pointer}
+button.alt,a.alt{background:transparent;color:var(--pk);border:1.5px solid var(--pk)}
+button:disabled{opacity:.45}
+button.opt{background:var(--card);color:var(--ink);border:1.5px solid var(--line);text-align:left;font-weight:500}
+button.right{border-color:var(--ok)}button.wrong{border-color:var(--bad)}
+.score{display:flex;gap:10px}.sc{flex:1;text-align:center;border:1.5px solid var(--line);border-radius:14px;padding:8px;background:var(--card)}
+.sc.turn{border-color:var(--pk)}.sc b{display:block;font-size:26px;color:var(--pk)}.sc span{font-size:13px;color:var(--mut)}
+.big{font-size:44px;letter-spacing:.2em;text-align:center;font-weight:800;color:var(--pk);margin:6px 0}
+.mut{color:var(--mut);font-size:14px;text-align:center}.err{color:var(--bad);text-align:center;min-height:1.2em}
+.q{font-size:19px;font-weight:700;margin:4px 0 10px}
+.chal{border:2px dashed var(--pk);border-radius:16px;padding:14px;margin:12px 0;background:var(--bg)}
+.bar{height:6px;background:var(--line);border-radius:3px;margin:10px 0}.bar i{display:block;height:100%;background:var(--pk);border-radius:3px}
+</style></head><body><div id="app"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig={
+  apiKey:"AIzaSyANB1GbEqje1izmpaaG-FI_CekOxfOCoFY",
+  authDomain:"couple-games-b77c2.firebaseapp.com",
+  databaseURL:"https://couple-games-b77c2-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:"couple-games-b77c2",
+  storageBucket:"couple-games-b77c2.firebasestorage.app",
+  messagingSenderId:"664199974045",
+  appId:"1:664199974045:web:b3066455d440581ceed874"};
+const Q=[["favorite way to spend a lazy Sunday",["Movies in bed","A slow walk outside","Cooking together","Sleeping in all day"]],["ideal date night",["Candlelit dinner","Stargazing picnic","Dancing","Cozy night in"]],["love language",["Kind words","Quality time","Physical touch","Little gifts"]],["go-to comfort food",["Pizza","Ice cream","Pasta","Chocolate"]],["dream vacation",["Beach island","Mountain cabin","City adventure","Safari"]],["daily rhythm",["Early bird","Night owl","Depends on the day","Always sleepy"]],["favorite thing about the other person",["Their smile","Their humor","Their kindness","Their eyes"]],["way of handling stress",["Talk it out","Go quiet","Eat something","Music or a walk"]],["ideal weekend morning",["Breakfast in bed","A run or gym","Brunch out","Lazy cuddles"]],["dream pet",["Dog","Cat","Something exotic","No pets"]],["favorite kind of surprise",["Handwritten note","Flowers","Planned trip","Home-cooked meal"]],["go-to karaoke vibe",["Power ballad","Pop banger","Old classic","I refuse to sing"]]];
+const C=["Send a voice note telling them one thing you adore about them.","Describe your first impression of them in three words.","Send your best smiling selfie right now.","Give a 20-second compliment without repeating yourself.","Sing one line of a love song in a voice note.","Write a two-line love poem on the spot.","Share your favorite memory of the two of you.","Plan your next date together in three sentences."];
+const app=document.getElementById("app");
+let db,uid,code,room,off,name="",msg="";
+const ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
+function h(t,p,...k){const e=document.createElement(t);for(const a in p||{}){if(p[a]==null||p[a]===false)continue;if(a==="onclick")e.onclick=p[a];else if(a==="class")e.className=p[a];else e.setAttribute(a,p[a])}for(const c of k.flat())if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(c));return e}
+const ref=()=>db.ref("rooms/"+code);
+const nm=id=>(room&&room.names&&room.names[id])||"Someone";
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const gen=()=>Array.from({length:4},()=>"ABCDEFGHJKMNPQRSTUVWXYZ"[Math.floor(Math.random()*23)]).join("");
+const newQs=()=>shuffle(Q.map((_,i)=>i)).slice(0,10);
+const timeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),ms))]);
+function show(...k){app.replaceChildren(h("h1",0,"❤️ How Well Do You Know Me?"),...k)}
+function home(){
+  const n=h("input",{placeholder:"Your name",maxlength:20,value:name});
+  const pre=(new URLSearchParams(location.search).get("r")||"").toUpperCase().slice(0,4);
+  const c=h("input",{class:"codein",placeholder:"ROOM CODE",maxlength:4,value:pre});
+  const ok=()=>{name=n.value.trim();if(!name){msg="Enter your name first";home();return false}ls("hwdkm_name",name);return true};
+  show(h("p",{class:"sub"},"A game for two phones, two places, one love."),
+   h("div",{class:"card"},n,
+    h("button",{onclick:async()=>{if(ok())try{await create()}catch(e){msg="Can't reach the game server. Check your internet and try again.";home()}}},"Create a room"),
+    h("p",{class:"mut"},"or join your partner's room"),c,
+    h("button",{class:"alt",onclick:async()=>{if(ok())try{await join(c.value)}catch(e){msg="Can't reach the game server. Check your internet and try again.";home()}}},"Join with code")),
+   h("div",{class:"err"},msg));msg=""}
+async function create(){
+  for(let i=0;i<5;i++){code=gen();const s=await timeout(ref().once("value"),8000);if(!s.exists())break}
+  await timeout(ref().set({host:uid,order:[uid],names:{[uid]:name},scores:{[uid]:0},qs:newQs(),round:0,phase:"lobby",created:Date.now()}),8000);
+  listen()}
+async function join(c){
+  code=(c||"").toUpperCase().trim();
+  if(code.length!==4){msg="Enter the 4-letter room code.";code=null;return home()}
+  const s=await timeout(ref().once("value"),8000);
+  if(!s.exists()){msg="Room not found. Check the code.";code=null;return home()}
+  const d=s.val(),order=d.order||[];
+  if(!order.includes(uid)){
+    if(order.length>=2){msg="That room is full.";code=null;return home()}
+    await ref().update({order:[...order,uid],["names/"+uid]:name,["scores/"+uid]:0})}
+  listen()}
+function listen(){
+  ls("hwdkm_room",code);if(off)off();
+  const r=ref(),f=r.on("value",s=>{if(!s.exists()){leave();return}room=s.val();room.order=room.order||[];room.scores=room.scores||{};render()},()=>{msg="Connection lost. Reload to rejoin.";leave()});
+  off=()=>r.off("value",f)}
+function leave(){if(off)off();off=null;room=null;code=null;ls("hwdkm_room",null);home()}
+const upd=o=>ref().update(o).catch(()=>{});
+function board(){
+  const r=room,i=r.round||0,subj=r.order[i%2];
+  return h("div",0,h("div",{class:"score"},r.order.map(id=>h("div",{class:"sc"+(r.phase!=="lobby"&&r.phase!=="done"&&id===subj?" turn":"")},h("span",0,nm(id)+(id===uid?" (you)":"")),h("b",0,r.scores[id]||0)))),
+   r.phase==="lobby"||r.phase==="done"?null:h("div",0,h("div",{class:"bar"},h("i",{style:"width:"+((i+(r.phase==="reveal"?1:0))/10*100)+"%"})),h("p",{class:"mut"},"Round "+(i+1)+" of 10")))}
+function render(){
+  if(!room)return home();
+  const r=room;
+  if(r.phase==="lobby")return lobby();
+  if(r.phase==="done")return final();
+  const i=r.round||0,q=Q[r.qs[i]],subj=r.order[i%2],gst=r.order[(i+1)%2],isS=uid===subj,isG=uid===gst;
+  const opts=(onPick,sel,right)=>q[1].map((o,k)=>h("button",{class:"opt"+(right!==undefined?(k===right?" right":k===sel?" wrong":""):""),onclick:onPick?()=>onPick(k):null,...(onPick?{}:{disabled:"1"})},o));
+  let body;
+  if(r.phase==="answer"){
+    body=isS?h("div",{class:"card"},h("div",{class:"q"},"Pick your "+q[0]+"."),h("p",{class:"mut"},nm(gst)+" will try to guess it 💭"),opts(k=>upd({pick:k,phase:"guess"})))
+      :h("div",{class:"card"},h("div",{class:"q"},nm(subj)+" is choosing their "+q[0]+"…"),h("p",{class:"mut"},"Get ready to guess 😏"))}
+  else if(r.phase==="guess"){
+    body=isG?h("div",{class:"card"},h("div",{class:"q"},"What's "+nm(subj)+"'s "+q[0]+"?"),opts(k=>{const ok=k===r.pick;upd({guessPick:k,phase:"reveal",["scores/"+gst]:(r.scores[gst]||0)+(ok?1:0)})}))
+      :h("div",{class:"card"},h("div",{class:"q"},nm(gst)+" is guessing your "+q[0]+"…"),h("p",{class:"mut"},"Fingers crossed 🤞"))}
+  else{
+    const ok=r.pick===r.guessPick;
+    body=h("div",{class:"card"},h("div",{class:"q"},"Their "+q[0]),opts(null,r.guessPick,r.pick),
+     h("p",{class:"mut"},nm(subj)+" chose the green one; "+nm(gst)+" guessed "+q[1][r.guessPick]+"."),
+     ok?h("div",{class:"chal"},"💘 Nailed it! "+nm(gst)+" earns a point.")
+       :h("div",{class:"chal"},h("b",0,"💋 Challenge for "+nm(gst)+":"),h("div",0,C[r.qs[i]%C.length])),
+     h("button",{onclick:()=>i>=9?upd({phase:"done"}):upd({round:i+1,phase:"answer",pick:null,guessPick:null})},i>=9?"See final scores":"Next round"))}
+  show(board(),body)}
+function lobby(){
+  const r=room,two=r.order.length===2,host=r.host===uid;
+  const base=location.href.split(/[?#]/)[0];
+  const wa="https://wa.me/?text="+encodeURIComponent("Come play How Well Do You Know Me? with me 💕\n"+base+"?r="+code+"\nRoom code: "+code);
+  show(h("div",{class:"card"},h("p",{class:"mut"},"Room code"),h("div",{class:"big"},code),
+    h("a",{class:"btn",href:wa,target:"_blank",rel:"noopener"},"Send invite on WhatsApp"),
+    h("button",{class:"alt",onclick:e=>{try{navigator.clipboard.writeText(base+"?r="+code);e.target.textContent="Link copied ✓"}catch(x){}}},"Copy invite link")),
+   h("div",{class:"card"},r.order.map(id=>h("div",0,"💗 "+nm(id)+(id===uid?" (you)":""))),!two&&h("p",{class:"mut"},"Waiting for your partner to join…")),
+   host?h("button",{disabled:two?null:"1",onclick:()=>upd({phase:"answer"})},two?"Start the game":"Waiting for partner"):h("p",{class:"mut"},two?"Waiting for the host to start…":"Waiting…"),
+   h("button",{class:"alt",onclick:leave},"Leave room"))}
+function final(){
+  const r=room,[a,b]=r.order,sa=r.scores[a]||0,sb=r.scores[b]||0;
+  const t=sa===sb?"It's a tie. You two are perfectly in sync 💞":(sa>sb?nm(a):nm(b))+" knows their partner best 🏆";
+  show(board(),h("div",{class:"card"},h("div",{class:"q"},t),h("p",{class:"mut"},"Loser plans the next date? Your call 😉")),
+   h("button",{onclick:()=>upd({qs:newQs(),round:0,phase:"answer",pick:null,guessPick:null,["scores/"+a]:0,["scores/"+b]:0})},"Play again"),
+   h("button",{class:"alt",onclick:leave},"Leave room"))}
+(async()=>{
+  try{
+    if(typeof firebase==="undefined")throw 0;
+    firebase.initializeApp(firebaseConfig);db=firebase.database();
+    uid=ls("hwdkm_uid");if(!uid){uid="p"+Math.random().toString(36).slice(2,10);ls("hwdkm_uid",uid)}
+  }catch(e){return show(h("p",{class:"sub"},"Couldn't load the game. Check your internet connection and reload."))}
+  name=ls("hwdkm_name")||"";
+  const saved=ls("hwdkm_room");
+  if(saved){code=saved;try{const s=await timeout(ref().once("value"),6000);if(s.exists()&&(s.val().order||[]).includes(uid))return listen()}catch(e){}code=null;ls("hwdkm_room",null)}
+  home()})();
+</script></body></html>
