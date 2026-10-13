@@ -63,7 +63,7 @@ const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math
 const gen=()=>Array.from({length:4},()=>"ABCDEFGHJKMNPQRSTUVWXYZ"[Math.floor(Math.random()*23)]).join("");
 const newQs=(p,l)=>shuffle(pool({pack:p,lvl:l}).map((_,i)=>i)).slice(0,10);
 const timeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),ms))]);
-function show(...k){app.replaceChildren(h("h1",0,"❤️ How Well Do You Know Me?"),...k.filter(Boolean))}
+function show(...k){const lv=room&&(room.phase==="play"||room.phase==="reveal")?h("button",{class:"alt",onclick:()=>{if(confirm("Leave this room?"))leave()}},"Leave room"):null;app.replaceChildren(h("h1",0,"❤️ How Well Do You Know Me?"),...k.concat(lv).filter(Boolean))}
 function home(){
   const n=h("input",{placeholder:"Your name",maxlength:20,value:name});
   const pre=(new URLSearchParams(location.search).get("r")||"").toUpperCase().slice(0,4);
@@ -99,7 +99,7 @@ function listen(){
     render()},()=>{msg="Connection lost. Reload to rejoin.";leave()});
   off=()=>r.off("value",f)}
 function leave(){if(off)off();off=null;room=null;code=null;ls("hwdkm_room",null);home()}
-const upd=o=>ref().update(o).catch(()=>{});
+const upd=o=>ref().update(o).catch(e=>alert("Could not save your move: "+((e&&e.code)||e)));
 function resolve(){const d=room;if(!d||d.phase!=="play")return;const[o0,o1]=d.order,A=d.a;if(!A[o0]||!A[o1])return;
   const m=DBL.includes(d.round)?2:1,sc={...d.scores},ok={...d.ok};
   [[o0,o1],[o1,o0]].forEach(([p,o])=>{if(A[p].g>=0&&A[p].g===A[o].s){sc[p]=(sc[p]||0)+m;ok[p]=(ok[p]||0)+1}});
@@ -156,6 +156,7 @@ function final(){
     uid=ls("hwdkm_uid");if(!uid){uid="p"+Math.random().toString(36).slice(2,10);ls("hwdkm_uid",uid)}
   }catch(e){return show(h("p",{class:"sub"},"Couldn't load the game. Check your internet connection and reload."))}
   name=ls("hwdkm_name")||"";
+  if(/[?&]reset/.test(location.search))ls("hwdkm_room",null);
   const saved=ls("hwdkm_room");
   if(saved){code=saved;try{const s=await timeout(ref().once("value"),6000);if(s.exists()&&(s.val().order||[]).includes(uid))return listen()}catch(e){}code=null;ls("hwdkm_room",null)}
   home()})();
